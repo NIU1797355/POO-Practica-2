@@ -157,13 +157,11 @@ class MusicPlayerApp:
         tk.Button(btn_frame, text="Eliminar Element", command=self.remove_item_uc3).grid(row=1, column=0, padx=5, pady=5)
         tk.Button(btn_frame, text="Crear Nova Llista", command=self.create_playlist_uc4).grid(row=1, column=1, padx=5, pady=5)
         
-        # Listbox para mostrar la cola actual
         self.tree = ttk.Treeview(self.root, columns=("Type", "Strategy/Duration"), show='headings')
         self.tree.heading("Type", text="Nom")
         self.tree.heading("Strategy/Duration", text="Info")
         self.tree.pack(pady=10, fill=tk.BOTH, expand=True, padx=10)
         
-        # Frame de reproducción
         play_frame = tk.Frame(self.root)
         play_frame.pack(pady=10)
         
@@ -171,14 +169,11 @@ class MusicPlayerApp:
         tk.Button(play_frame, text="⏹ STOP", command=self.stop_music, bg="lightcoral").pack(side=tk.LEFT, padx=5)
         tk.Button(play_frame, text="Cambiar Estrategia Llista", command=self.change_strategy).pack(side=tk.LEFT, padx=5)
         
-        # Label de estado
         self.status_var = tk.StringVar()
         self.status_var.set("Aturat")
         tk.Label(self.root, textvariable=self.status_var, fg="blue").pack(pady=5)
         
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
-
-    # --- Lógica de Manejo de Archivos y Estado ---
     
     def get_files_by_ext(self, ext):
         return [f for f in os.listdir(self.music_dir) if f.endswith(ext)]
@@ -193,11 +188,8 @@ class MusicPlayerApp:
                     if line.endswith('.mp3'):
                         pl.add(Song(line))
                     elif line.endswith('.m3u'):
-                        # Recursividad si una m3u contiene otra m3u
                         pl.add(self.build_playlist_from_m3u(line))
         return pl
-
-    # --- Casos de Uso ---
 
     def add_song_uc1(self):
         songs = self.get_files_by_ext('.mp3')
@@ -228,7 +220,6 @@ class MusicPlayerApp:
         def on_select():
             sel = listbox.get(tk.ACTIVE)
             if sel:
-                # Per defecte la creem amb seqüencial. L'usuari la pot canviar després.
                 pl = self.build_playlist_from_m3u(sel)
                 self.main_queue.append(pl)
                 self.update_listbox()
@@ -276,7 +267,6 @@ class MusicPlayerApp:
     def play_music_uc5(self):
         if self.is_playing: return
         
-        # 1. Recalcular toda la lista (Aplica estrategias de reproducción actuales)
         self.current_playback_list = []
         for comp in self.main_queue:
             self.current_playback_list.extend(comp.get_ordered_songs())
@@ -287,8 +277,6 @@ class MusicPlayerApp:
             
         self.is_playing = True
         self.play_next_song()
-
-    # --- Motor de Reproducción ---
 
     def play_next_song(self):
         if not self.is_playing: return
