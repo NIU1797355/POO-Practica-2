@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 import pygame
 
 # ==========================================
-# MODELO
+# MODELO: Estrategias y Componentes (Sin cambios)
 # ==========================================
 
 class PlayStrategy(ABC):
@@ -94,6 +94,10 @@ class PlayList(MusicComponent):
             "components": [c.to_dict() for c in self.components]
         }
 
+# ==========================================
+# MODELO: Gestor de Estado
+# ==========================================
+
 class PlayerModel:
     def __init__(self):
         self.music_dir = "MusicDir"
@@ -121,7 +125,7 @@ class PlayerModel:
         return [f for f in os.listdir(self.music_dir) if f.endswith(ext)]
 
 # ==========================================
-# VISTA
+# VISTA: Interfaz Gráfica (Tkinter puro)
 # ==========================================
 
 class PlayerView:
@@ -255,7 +259,7 @@ class PlayerView:
 
 
 # ==========================================
-# CONTROLADOR
+# CONTROLADOR: Lógica de negocio y Audio
 # ==========================================
 
 class PlayerController:
@@ -382,7 +386,7 @@ class PlayerController:
             return pl
 
 # ==========================================
-# Main 
+# PUNTO DE ENTRADA
 # ==========================================
 
 if __name__ == "__main__":

@@ -1,0 +1,40 @@
+[
+    {
+        "type": "Song",
+        "filename": "Song03.mp3"
+    },
+    {
+        "type": "PlayList",
+        "name": "dsafadf.m3u",
+        "strategy": "Random",
+        "components": [
+            {
+                "type": "Song",
+                "filename": "Song04.mp3"
+            },
+            {
+                "type": "Song",
+                "filename": "Song07.mp3"
+            }
+        ]
+    },
+    {
+        "type": "PlayList",
+        "name": "dsafadf.m3u",
+        "strategy": "Sequential",
+        "components": [
+            {
+                "type": "Song",
+                "filename": "Song04.mp3"
+            },
+            {
+                "type": "Song",
+                "filename": "Song07.mp3"
+            }
+        ]
+    },
+    {
+        "type": "Song",
+        "filename": "Song04.mp3"
+    }
+]
