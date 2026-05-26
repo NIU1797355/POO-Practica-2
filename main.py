@@ -6,37 +6,30 @@ from tkinter import simpledialog, messagebox, ttk
 from abc import ABC, abstractmethod
 import pygame
 
+# ==========================================
+# MODELO
+# ==========================================
+
 class PlayStrategy(ABC):
     @abstractmethod
-    def order(self, components):
-        pass
-    
+    def order(self, components): pass
     @abstractmethod
-    def get_name(self):
-        pass
+    def get_name(self): pass
 
 class SequentialPlayStrategy(PlayStrategy):
-    def order(self, components):
-        return list(components)
-    
-    def get_name(self):
-        return "Sequential"
+    def order(self, components): return list(components)
+    def get_name(self): return "Sequential"
 
 class RandomPlayStrategy(PlayStrategy):
     def order(self, components):
         shuffled = list(components)
         random.shuffle(shuffled)
         return shuffled
-    
-    def get_name(self):
-        return "Random"
+    def get_name(self): return "Random"
 
 class ShortestFirstPlayStrategy(PlayStrategy):
-    def order(self, components):
-        return sorted(components, key=lambda c: c.get_duration())
-    
-    def get_name(self):
-        return "ShortestFirst"
+    def order(self, components): return sorted(components, key=lambda c: c.get_duration())
+    def get_name(self): return "ShortestFirst"
 
 def get_strategy_by_name(name):
     strategies = {
@@ -48,27 +41,19 @@ def get_strategy_by_name(name):
 
 class MusicComponent(ABC):
     @abstractmethod
-    def get_duration(self):
-        pass
-    
+    def get_duration(self): pass
     @abstractmethod
-    def print_structure(self, indent=0):
-        pass
-        
+    def print_structure(self, indent=0): pass
     @abstractmethod
-    def get_ordered_songs(self):
-        pass
-
+    def get_ordered_songs(self): pass
     @abstractmethod
-    def to_dict(self):
-        pass
+    def to_dict(self): pass
 
 class Song(MusicComponent):
     def __init__(self, filename):
         self.filename = filename
         self.filepath = os.path.join("MusicDir", filename)
         self._duration = 0.0
-
         try:
             if os.path.exists(self.filepath):
                 sound = pygame.mixer.Sound(self.filepath)
@@ -76,17 +61,10 @@ class Song(MusicComponent):
         except:
             self._duration = 0.0
 
-    def get_duration(self):
-        return self._duration
-
-    def print_structure(self, indent=0):
-        print("  " * indent + f"- {self.filename} ({self.get_duration():.2f}s)")
-
-    def get_ordered_songs(self):
-        return [self]
-
-    def to_dict(self):
-        return {"type": "Song", "filename": self.filename}
+    def get_duration(self): return self._duration
+    def print_structure(self, indent=0): print("  " * indent + f"- {self.filename} ({self.get_duration():.2f}s)")
+    def get_ordered_songs(self): return [self]
+    def to_dict(self): return {"type": "Song", "filename": self.filename}
 
 class PlayList(MusicComponent):
     def __init__(self, name, strategy=None):
@@ -94,32 +72,20 @@ class PlayList(MusicComponent):
         self.components = []
         self.strategy = strategy if strategy else SequentialPlayStrategy()
 
-    def add(self, component):
-        self.components.append(component)
-
+    def add(self, component): self.components.append(component)
     def remove(self, component):
-        if component in self.components:
-            self.components.remove(component)
-
-    def set_strategy(self, strategy):
-        self.strategy = strategy
-
-    def get_duration(self):
-        return sum(c.get_duration() for c in self.components)
-
+        if component in self.components: self.components.remove(component)
+    def set_strategy(self, strategy): self.strategy = strategy
+    def get_duration(self): return sum(c.get_duration() for c in self.components)
     def print_structure(self, indent=0):
         print("  " * indent + f"[{self.name}] - Strategy: {self.strategy.get_name()}")
         for component in self.strategy.order(self.components):
             component.print_structure(indent + 1)
-
     def get_ordered_songs(self):
-        ordered_comps = self.strategy.order(self.components)
-        
         result = []
-        for comp in ordered_comps:
+        for comp in self.strategy.order(self.components):
             result.extend(comp.get_ordered_songs())
         return result
-
     def to_dict(self):
         return {
             "type": "PlayList", 
@@ -128,262 +94,298 @@ class PlayList(MusicComponent):
             "components": [c.to_dict() for c in self.components]
         }
 
-class MusicPlayerApp:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Reproductor de Música MATCAD-UAB")
-        self.root.geometry("500x600")
-        
-        pygame.mixer.init()
-        
+class PlayerModel:
+    def __init__(self):
         self.music_dir = "MusicDir"
-        if not os.path.exists(self.music_dir):
-            os.makedirs(self.music_dir)
-            
         self.main_queue = []
         self.current_playback_list = []
         self.is_playing = False
         
-        self.setup_ui()
-        self.load_state()
-        self.update_listbox()
+        if not os.path.exists(self.music_dir):
+            os.makedirs(self.music_dir)
+    
+    def add_to_queue(self, component):
+        self.main_queue.append(component)
+
+    def remove_from_queue(self, index):
+        if 0 <= index < len(self.main_queue):
+            del self.main_queue[index]
+
+    def prepare_playback(self):
+        self.current_playback_list = []
+        for comp in self.main_queue:
+            self.current_playback_list.extend(comp.get_ordered_songs())
+        return len(self.current_playback_list) > 0
+
+    def get_files_by_ext(self, ext):
+        return [f for f in os.listdir(self.music_dir) if f.endswith(ext)]
+
+# ==========================================
+# VISTA
+# ==========================================
+
+class PlayerView:
+    def __init__(self, root, controller):
+        self.root = root
+        self.controller = controller 
+        self.root.title("Reproductor de música MATCAD")
+        self.root.geometry("500x600")
         
+        self.setup_ui()
+    
     def setup_ui(self):
         btn_frame = tk.Frame(self.root)
         btn_frame.pack(pady=10, fill=tk.X, padx=10)
         
-        tk.Button(btn_frame, text="Afegir Cançó (mp3)", command=self.add_song_uc1).grid(row=0, column=0, padx=5, pady=5)
-        tk.Button(btn_frame, text="Afegir Llista (m3u)", command=self.add_playlist_uc2).grid(row=0, column=1, padx=5, pady=5)
-        tk.Button(btn_frame, text="Eliminar Element", command=self.remove_item_uc3).grid(row=1, column=0, padx=5, pady=5)
-        tk.Button(btn_frame, text="Crear Nova Llista", command=self.create_playlist_uc4).grid(row=1, column=1, padx=5, pady=5)
+        # Los botones ahora llaman a métodos de la Vista que recogen info y avisan al Controlador
+        tk.Button(btn_frame, text="Afegir Cançó", command=self.ui_add_song).grid(row=0, column=0, padx=5, pady=5)
+        tk.Button(btn_frame, text="Afegir Llista", command=self.ui_add_playlist).grid(row=0, column=1, padx=5, pady=5)
+        tk.Button(btn_frame, text="Eliminar Element", command=self.ui_remove_item).grid(row=1, column=0, padx=5, pady=5)
+        tk.Button(btn_frame, text="Crear Nova Llista", command=self.ui_create_playlist).grid(row=1, column=1, padx=5, pady=5)
         
-        # Listbox para mostrar la cola actual
-        self.tree = ttk.Treeview(self.root, columns=("Type", "Strategy/Duration"), show='headings')
+        self.tree = ttk.Treeview(self.root, columns=("Type", "Info"), show='headings')
         self.tree.heading("Type", text="Nom")
-        self.tree.heading("Strategy/Duration", text="Info")
+        self.tree.heading("Info", text="Info")
         self.tree.pack(pady=10, fill=tk.BOTH, expand=True, padx=10)
         
-        # Frame de reproducción
         play_frame = tk.Frame(self.root)
         play_frame.pack(pady=10)
         
-        tk.Button(play_frame, text="▶ PLAY", command=self.play_music_uc5, bg="lightgreen").pack(side=tk.LEFT, padx=5)
-        tk.Button(play_frame, text="⏹ STOP", command=self.stop_music, bg="lightcoral").pack(side=tk.LEFT, padx=5)
-        tk.Button(play_frame, text="Cambiar Estrategia Llista", command=self.change_strategy).pack(side=tk.LEFT, padx=5)
+        tk.Button(play_frame, text="▶ PLAY", command=self.controller.play_music, bg="lightgreen").pack(side=tk.LEFT, padx=5)
+        tk.Button(play_frame, text="⏹ STOP", command=self.controller.stop_music, bg="lightcoral").pack(side=tk.LEFT, padx=5)
+        tk.Button(play_frame, text="Canviar Estratègia", command=self.ui_change_strategy).pack(side=tk.LEFT, padx=5)
         
-        # Label de estado
-        self.status_var = tk.StringVar()
-        self.status_var.set("Aturat")
+        self.status_var = tk.StringVar(value="Aturat")
         tk.Label(self.root, textvariable=self.status_var, fg="blue").pack(pady=5)
         
-        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+        self.root.protocol("WM_DELETE_WINDOW", self.controller.on_close)
 
-    # --- Lógica de Manejo de Archivos y Estado ---
-    
-    def get_files_by_ext(self, ext):
-        return [f for f in os.listdir(self.music_dir) if f.endswith(ext)]
+    def update_listbox(self, display_data):
+        for i in self.tree.get_children():
+            self.tree.delete(i)
+        for item in display_data:
+            self.tree.insert("", "end", values=item)
 
-    def build_playlist_from_m3u(self, filename, strategy=None):
-        pl = PlayList(filename, strategy)
-        path = os.path.join(self.music_dir, filename)
-        if os.path.exists(path):
-            with open(path, 'r') as f:
-                lines = [l.strip() for l in f.readlines() if l.strip()]
-                for line in lines:
-                    if line.endswith('.mp3'):
-                        pl.add(Song(line))
-                    elif line.endswith('.m3u'):
-                        # Recursividad si una m3u contiene otra m3u
-                        pl.add(self.build_playlist_from_m3u(line))
-        return pl
+    def update_status(self, text):
+        self.status_var.set(text)
 
-    # --- Casos de Uso ---
+    def show_message(self, title, message):
+        messagebox.showinfo(title, message)
 
-    def add_song_uc1(self):
-        songs = self.get_files_by_ext('.mp3')
+    # --- Lógica de la interfaz ---
+    def ui_add_song(self):
+        songs = self.controller.model.get_files_by_ext('.mp3')
         if not songs:
-            messagebox.showinfo("Info", "No hi ha fitxers .mp3 a MusicDir")
+            self.show_message("Info", "No hi ha fitxers .mp3")
             return
             
-        def on_select():
-            sel = listbox.get(tk.ACTIVE)
-            if sel:
-                self.main_queue.append(Song(sel))
-                self.update_listbox()
-            top.destroy()
-            
         top = tk.Toplevel(self.root)
-        top.title("Selecciona Cançó")
         listbox = tk.Listbox(top, width=40)
         listbox.pack(padx=10, pady=10)
         for s in songs: listbox.insert(tk.END, s)
-        tk.Button(top, text="Afegir", command=on_select).pack(pady=5)
-
-    def add_playlist_uc2(self):
-        lists = self.get_files_by_ext('.m3u')
-        if not lists:
-            messagebox.showinfo("Info", "No hi ha fitxers .m3u a MusicDir")
-            return
-            
+        
         def on_select():
             sel = listbox.get(tk.ACTIVE)
             if sel:
-                # Per defecte la creem amb seqüencial. L'usuari la pot canviar després.
-                pl = self.build_playlist_from_m3u(sel)
-                self.main_queue.append(pl)
-                self.update_listbox()
+                self.controller.add_song(sel)
             top.destroy()
+        tk.Button(top, text="Afegir", command=on_select).pack(pady=5)
+
+    def ui_add_playlist(self):
+        lists = self.controller.model.get_files_by_ext('.m3u')
+        if not lists:
+            self.show_message("Info", "No hi ha fitxers .m3u")
+            return
             
         top = tk.Toplevel(self.root)
-        top.title("Selecciona Llista")
         listbox = tk.Listbox(top, width=40)
         listbox.pack(padx=10, pady=10)
         for l in lists: listbox.insert(tk.END, l)
+        
+        def on_select():
+            sel = listbox.get(tk.ACTIVE)
+            if sel:
+                self.controller.add_playlist(sel)
+            top.destroy()
         tk.Button(top, text="Afegir", command=on_select).pack(pady=5)
 
-    def remove_item_uc3(self):
+    def ui_remove_item(self):
         selected = self.tree.selection()
-        if not selected:
-            return
-        idx = self.tree.index(selected[0])
-        if 0 <= idx < len(self.main_queue):
-            del self.main_queue[idx]
-            self.update_listbox()
+        if selected:
+            idx = self.tree.index(selected[0])
+            self.controller.remove_item(idx)
 
-    def create_playlist_uc4(self):
-        name = simpledialog.askstring("Nom Llista", "Nom del fitxer de la nova llista (sense .m3u):")
+    def ui_create_playlist(self):
+        name = simpledialog.askstring("Nom Llista", "Nom del fitxer (sense .m3u):")
         if not name: return
         filename = f"{name}.m3u"
-        
-        all_files = self.get_files_by_ext('.mp3') + self.get_files_by_ext('.m3u')
+        all_files = self.controller.model.get_files_by_ext('.mp3') + self.controller.model.get_files_by_ext('.m3u')
         
         top = tk.Toplevel(self.root)
-        top.title(f"Afegeix a {filename}")
         listbox = tk.Listbox(top, selectmode=tk.MULTIPLE, width=40)
         listbox.pack(padx=10, pady=10)
         for f in all_files: listbox.insert(tk.END, f)
         
-        def save_m3u():
-            selected_indices = listbox.curselection()
-            with open(os.path.join(self.music_dir, filename), 'w') as f:
-                for idx in selected_indices:
-                    f.write(listbox.get(idx) + '\n')
-            messagebox.showinfo("Info", "Llista guardada!")
+        def save():
+            selected = [listbox.get(i) for i in listbox.curselection()]
+            self.controller.create_playlist(filename, selected)
             top.destroy()
-            
-        tk.Button(top, text="Guardar Fitxer", command=save_m3u).pack(pady=5)
+        tk.Button(top, text="Guardar", command=save).pack(pady=5)
 
-    def play_music_uc5(self):
-        if self.is_playing: return
+    def ui_change_strategy(self):
+        selected = self.tree.selection()
+        if not selected: return
+        idx = self.tree.index(selected[0])
         
-        # 1. Recalcular toda la lista (Aplica estrategias de reproducción actuales)
-        self.current_playback_list = []
-        for comp in self.main_queue:
-            self.current_playback_list.extend(comp.get_ordered_songs())
-            
-        if not self.current_playback_list:
-            messagebox.showinfo("Info", "No hi ha cançons per reproduir")
+        # Preguntamos al controlador si este índice es una Playlist
+        if not self.controller.is_playlist(idx):
+            self.show_message("Info", "Només les llistes tenen estratègia.")
             return
-            
-        self.is_playing = True
-        self.play_next_song()
 
-    # --- Motor de Reproducción ---
+        top = tk.Toplevel(self.root)
+        var = tk.StringVar(value="Sequential")
+        tk.Radiobutton(top, text="Seqüencial", variable=var, value="Sequential").pack(anchor=tk.W)
+        tk.Radiobutton(top, text="Aleatòria", variable=var, value="Random").pack(anchor=tk.W)
+        tk.Radiobutton(top, text="Més Curta", variable=var, value="ShortestFirst").pack(anchor=tk.W)
+        
+        def apply():
+            self.controller.change_strategy(idx, var.get())
+            top.destroy()
+        tk.Button(top, text="Aplicar", command=apply).pack(pady=10)
+
+
+# ==========================================
+# CONTROLADOR
+# ==========================================
+
+class PlayerController:
+    def __init__(self, root):
+        self.model = PlayerModel()
+        self.view = PlayerView(root, self)
+
+        pygame.mixer.init()
+        self.load_state()
+        self.refresh_view()
+    
+    def refresh_view(self):
+        display = []
+        for comp in self.model.main_queue:
+            if isinstance(comp, Song):
+                display.append((comp.filename, f"{comp.get_duration():.1f}s"))
+            else:
+                display.append((f"[{comp.name}]", f"Strat: {comp.strategy.get_name()}"))
+        self.view.update_listbox(display)
+
+    # --- Acciones que vienen de la Vista ---
+
+    def add_song(self, filename):
+        self.model.add_to_queue(Song(filename))
+        self.refresh_view()
+
+    def add_playlist(self, filename):
+        pl = self.build_playlist_from_m3u(filename)
+        self.model.add_to_queue(pl)
+        self.refresh_view()
+
+    def remove_item(self, index):
+        self.model.remove_from_queue(index)
+        self.refresh_view()
+
+    def create_playlist(self, filename, selected_files):
+        with open(os.path.join(self.model.music_dir, filename), 'w') as f:
+            for item in selected_files:
+                f.write(item + '\n')
+        self.view.show_message("Info", "Llista guardada!")
+
+    def is_playlist(self, index):
+        if 0 <= index < len(self.model.main_queue):
+            return isinstance(self.model.main_queue[index], PlayList)
+        return False
+
+    def change_strategy(self, index, strategy_name):
+        comp = self.model.main_queue[index]
+        comp.set_strategy(get_strategy_by_name(strategy_name))
+        self.refresh_view()
+
+    def build_playlist_from_m3u(self, filename, strategy=None):
+        pl = PlayList(filename, strategy)
+        path = os.path.join(self.model.music_dir, filename)
+        if os.path.exists(path):
+            with open(path, 'r') as f:
+                for line in [l.strip() for l in f.readlines() if l.strip()]:
+                    if line.endswith('.mp3'): pl.add(Song(line))
+                    elif line.endswith('.m3u'): pl.add(self.build_playlist_from_m3u(line))
+        return pl
+
+    # --- Motor de Audio ---
+
+    def play_music(self):
+        if self.model.is_playing: return
+        if self.model.prepare_playback():
+            self.model.is_playing = True
+            self.play_next_song()
+        else:
+            self.view.show_message("Info", "No hi ha cançons per reproduir")
+
+    def stop_music(self):
+        self.model.is_playing = False
+        pygame.mixer.music.stop()
+        self.view.update_status("Aturat")
 
     def play_next_song(self):
-        if not self.is_playing: return
+        if not self.model.is_playing: return
         
-        if not self.current_playback_list:
+        if not self.model.current_playback_list:
             self.stop_music()
-            self.status_var.set("Reproducció finalitzada")
+            self.view.update_status("Reproducció finalitzada")
             return
             
-        next_song = self.current_playback_list.pop(0)
+        next_song = self.model.current_playback_list.pop(0)
         
         if os.path.exists(next_song.filepath):
             pygame.mixer.music.load(next_song.filepath)
             pygame.mixer.music.play()
-            self.status_var.set(f"Sonant: {next_song.filename}")
+            self.view.update_status(f"Sonant: {next_song.filename}")
             self.monitor_playback()
         else:
-            print(f"Fitxer no trobat: {next_song.filepath}")
             self.play_next_song()
 
     def monitor_playback(self):
-        if not self.is_playing: return
+        if not self.model.is_playing: return
         if not pygame.mixer.music.get_busy():
             self.play_next_song()
         else:
-            self.root.after(500, self.monitor_playback)
+            self.view.root.after(500, self.monitor_playback)
 
-    def stop_music(self):
-        self.is_playing = False
-        pygame.mixer.music.stop()
-        self.status_var.set("Aturat")
+    # --- Persistencia ---
 
-    def change_strategy(self):
-        selected = self.tree.selection()
-        if not selected: return
-        idx = self.tree.index(selected[0])
-        comp = self.main_queue[idx]
-        
-        if isinstance(comp, PlayList):
-            top = tk.Toplevel(self.root)
-            top.title("Tria Estratègia")
-            var = tk.StringVar(value=comp.strategy.get_name())
-            
-            tk.Radiobutton(top, text="Seqüencial", variable=var, value="Sequential").pack(anchor=tk.W)
-            tk.Radiobutton(top, text="Aleatòria", variable=var, value="Random").pack(anchor=tk.W)
-            tk.Radiobutton(top, text="Més Curta Primer", variable=var, value="ShortestFirst").pack(anchor=tk.W)
-            
-            def apply():
-                comp.set_strategy(get_strategy_by_name(var.get()))
-                self.update_listbox()
-                top.destroy()
-                
-            tk.Button(top, text="Aplicar", command=apply).pack(pady=10)
-        else:
-            messagebox.showinfo("Info", "Les cançons individuals no tenen estratègia.")
+    def on_close(self):
+        state = [comp.to_dict() for comp in self.model.main_queue]
+        with open('player_state.json', 'w') as f:
+            json.dump(state, f, indent=4)
+        self.view.root.destroy()
 
-    def update_listbox(self):
-        for i in self.tree.get_children():
-            self.tree.delete(i)
-        for comp in self.main_queue:
-            if isinstance(comp, Song):
-                self.tree.insert("", "end", values=(comp.filename, f"{comp.get_duration():.1f}s"))
-            else:
-                self.tree.insert("", "end", values=(f"[{comp.name}]", f"Strat: {comp.strategy.get_name()}"))
-                
-        print("\n--- Estat Actual del Reproductor ---")
-        for comp in self.main_queue:
-            comp.print_structure()
+    def load_state(self):
+        if os.path.exists('player_state.json'):
+            with open('player_state.json', 'r') as f:
+                try:
+                    for item in json.load(f):
+                        self.model.main_queue.append(self.parse_dict_to_comp(item))
+                except json.JSONDecodeError: pass
 
     def parse_dict_to_comp(self, d):
-        if d['type'] == 'Song':
-            return Song(d['filename'])
+        if d['type'] == 'Song': return Song(d['filename'])
         elif d['type'] == 'PlayList':
             pl = PlayList(d['name'], get_strategy_by_name(d.get('strategy', 'Sequential')))
             for child in d.get('components', []):
                 pl.add(self.parse_dict_to_comp(child))
             return pl
 
-    def on_close(self):
-        state = [comp.to_dict() for comp in self.main_queue]
-        with open('player_state.json', 'w') as f:
-            json.dump(state, f, indent=4)
-        self.root.destroy()
-
-    def load_state(self):
-        if os.path.exists('player_state.json'):
-            with open('player_state.json', 'r') as f:
-                try:
-                    state = json.load(f)
-                    for item in state:
-                        self.main_queue.append(self.parse_dict_to_comp(item))
-                except json.JSONDecodeError:
-                    pass
+# ==========================================
+# Main 
+# ==========================================
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = MusicPlayerApp(root)
+    app = PlayerController(root)
     root.mainloop()
