@@ -19,19 +19,8 @@
         ]
     },
     {
-        "type": "PlayList",
-        "name": "dsafadf.m3u",
-        "strategy": "Sequential",
-        "components": [
-            {
-                "type": "Song",
-                "filename": "Song04.mp3"
-            },
-            {
-                "type": "Song",
-                "filename": "Song07.mp3"
-            }
-        ]
+        "type": "Song",
+        "filename": "Song04.mp3"
     },
     {
         "type": "Song",

@@ -6,10 +6,6 @@ from tkinter import simpledialog, messagebox, ttk
 from abc import ABC, abstractmethod
 import pygame
 
-# ==========================================
-# MODELO: Estrategias y Componentes (Sin cambios)
-# ==========================================
-
 class PlayStrategy(ABC):
     @abstractmethod
     def order(self, components): pass
@@ -58,7 +54,7 @@ class Song(MusicComponent):
             if os.path.exists(self.filepath):
                 sound = pygame.mixer.Sound(self.filepath)
                 self._duration = sound.get_length()
-        except:
+        except Exception:
             self._duration = 0.0
 
     def get_duration(self): return self._duration
@@ -94,17 +90,12 @@ class PlayList(MusicComponent):
             "components": [c.to_dict() for c in self.components]
         }
 
-# ==========================================
-# MODELO: Gestor de Estado
-# ==========================================
-
 class PlayerModel:
     def __init__(self):
         self.music_dir = "MusicDir"
         self.main_queue = []
         self.current_playback_list = []
         self.is_playing = False
-        
         if not os.path.exists(self.music_dir):
             os.makedirs(self.music_dir)
     
@@ -124,24 +115,18 @@ class PlayerModel:
     def get_files_by_ext(self, ext):
         return [f for f in os.listdir(self.music_dir) if f.endswith(ext)]
 
-# ==========================================
-# VISTA: Interfaz Gráfica (Tkinter puro)
-# ==========================================
-
 class PlayerView:
     def __init__(self, root, controller):
         self.root = root
         self.controller = controller 
         self.root.title("Reproductor de música MATCAD")
         self.root.geometry("500x600")
-        
         self.setup_ui()
     
     def setup_ui(self):
         btn_frame = tk.Frame(self.root)
         btn_frame.pack(pady=10, fill=tk.X, padx=10)
         
-        # Los botones ahora llaman a métodos de la Vista que recogen info y avisan al Controlador
         tk.Button(btn_frame, text="Afegir Cançó", command=self.ui_add_song).grid(row=0, column=0, padx=5, pady=5)
         tk.Button(btn_frame, text="Afegir Llista", command=self.ui_add_playlist).grid(row=0, column=1, padx=5, pady=5)
         tk.Button(btn_frame, text="Eliminar Element", command=self.ui_remove_item).grid(row=1, column=0, padx=5, pady=5)
@@ -176,7 +161,6 @@ class PlayerView:
     def show_message(self, title, message):
         messagebox.showinfo(title, message)
 
-    # --- Lógica de la interfaz ---
     def ui_add_song(self):
         songs = self.controller.model.get_files_by_ext('.mp3')
         if not songs:
@@ -189,10 +173,11 @@ class PlayerView:
         for s in songs: listbox.insert(tk.END, s)
         
         def on_select():
-            sel = listbox.get(tk.ACTIVE)
-            if sel:
+            selection = listbox.curselection()
+            if selection:
+                sel = listbox.get(selection[0])
                 self.controller.add_song(sel)
-            top.destroy()
+                top.destroy()
         tk.Button(top, text="Afegir", command=on_select).pack(pady=5)
 
     def ui_add_playlist(self):
@@ -207,10 +192,11 @@ class PlayerView:
         for l in lists: listbox.insert(tk.END, l)
         
         def on_select():
-            sel = listbox.get(tk.ACTIVE)
-            if sel:
+            selection = listbox.curselection()
+            if selection:
+                sel = listbox.get(selection[0])
                 self.controller.add_playlist(sel)
-            top.destroy()
+                top.destroy()
         tk.Button(top, text="Afegir", command=on_select).pack(pady=5)
 
     def ui_remove_item(self):
@@ -241,7 +227,6 @@ class PlayerView:
         if not selected: return
         idx = self.tree.index(selected[0])
         
-        # Preguntamos al controlador si este índice es una Playlist
         if not self.controller.is_playlist(idx):
             self.show_message("Info", "Només les llistes tenen estratègia.")
             return
@@ -257,16 +242,10 @@ class PlayerView:
             top.destroy()
         tk.Button(top, text="Aplicar", command=apply).pack(pady=10)
 
-
-# ==========================================
-# CONTROLADOR: Lógica de negocio y Audio
-# ==========================================
-
 class PlayerController:
     def __init__(self, root):
         self.model = PlayerModel()
         self.view = PlayerView(root, self)
-
         pygame.mixer.init()
         self.load_state()
         self.refresh_view()
@@ -279,8 +258,6 @@ class PlayerController:
             else:
                 display.append((f"[{comp.name}]", f"Strat: {comp.strategy.get_name()}"))
         self.view.update_listbox(display)
-
-    # --- Acciones que vienen de la Vista ---
 
     def add_song(self, filename):
         self.model.add_to_queue(Song(filename))
@@ -321,8 +298,6 @@ class PlayerController:
                     elif line.endswith('.m3u'): pl.add(self.build_playlist_from_m3u(line))
         return pl
 
-    # --- Motor de Audio ---
-
     def play_music(self):
         if self.model.is_playing: return
         if self.model.prepare_playback():
@@ -361,8 +336,6 @@ class PlayerController:
         else:
             self.view.root.after(500, self.monitor_playback)
 
-    # --- Persistencia ---
-
     def on_close(self):
         state = [comp.to_dict() for comp in self.model.main_queue]
         with open('player_state.json', 'w') as f:
@@ -384,10 +357,6 @@ class PlayerController:
             for child in d.get('components', []):
                 pl.add(self.parse_dict_to_comp(child))
             return pl
-
-# ==========================================
-# PUNTO DE ENTRADA
-# ==========================================
 
 if __name__ == "__main__":
     root = tk.Tk()
