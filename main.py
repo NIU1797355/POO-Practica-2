@@ -5,6 +5,10 @@ import tkinter as tk
 from tkinter import simpledialog, messagebox, ttk
 from abc import ABC, abstractmethod
 import pygame
+from mutagen import MP3 #para poder medir la duración real del audio
+# ==========================================
+# MODELO: Estrategias y Componentes
+# ==========================================
 
 class PlayStrategy(ABC):
     @abstractmethod
@@ -52,9 +56,10 @@ class Song(MusicComponent):
         self._duration = 0.0
         try:
             if os.path.exists(self.filepath):
-                sound = pygame.mixer.Sound(self.filepath)
-                self._duration = sound.get_length()
-        except Exception:
+                audio = MP3(self.filepath)
+                self._duration = audio.info.length
+        except Exception as e:
+            print(f"Error llegint la duració de {filename} : {e}")
             self._duration = 0.0
 
     def get_duration(self): return self._duration
